@@ -17,19 +17,15 @@ period = st.selectbox("اختر مدة التحليل", ["7d", "14d", "30d"])
 df = yf.download(tickers=symbol, interval=interval, period=period)
 df.reset_index(inplace=True)
 
-# تأكد من وجود بيانات كافية
-if df.empty or len(df) < 50:
-    st.error("❌ لا توجد بيانات كافية للتحليل. حاول تغيير الإعدادات.")
-    st.stop()
+# ✅ عرض أسماء الأعمدة للتصحيح
+st.subheader("🧾 الأعمدة الموجودة في البيانات:")
+st.write(df.columns.tolist())
 
-# ✅ إصلاح الأعمدة لو فيها MultiIndex
-df.columns = [col if isinstance(col, str) else col[1] for col in df.columns]
-
-# ✅ أعمدة الأسعار
-close_col = next((col for col in df.columns if "Close" in col), None)
-volume_col = next((col for col in df.columns if "Volume" in col), None)
-
-if not close_col or not volume_col:
+# ✅ التحقق من الأعمدة المطلوبة
+try:
+    close_col = [col for col in df.columns if "Close" in col][0]
+    volume_col = [col for col in df.columns if "Volume" in col][0]
+except IndexError:
     st.error("❌ لم يتم العثور على أعمدة الأسعار اللازمة.")
     st.stop()
 
@@ -43,22 +39,16 @@ df['macd_signal'] = macd.macd_signal()
 
 # ✅ الشموع
 def is_bullish_engulfing(df):
-    if len(df) < 2:
-        return False
     last = df.iloc[-1]
     prev = df.iloc[-2]
     return (prev[close_col] < prev['Open']) and (last[close_col] > last['Open']) and (last[close_col] > prev['Open'])
 
 def is_bearish_engulfing(df):
-    if len(df) < 2:
-        return False
     last = df.iloc[-1]
     prev = df.iloc[-2]
     return (prev[close_col] > prev['Open']) and (last[close_col] < last['Open']) and (last[close_col] < prev['Open'])
 
 def is_high_volume(df):
-    if len(df) < 10:
-        return False
     avg = df[volume_col].iloc[-10:].mean()
     return df[volume_col].iloc[-1] > avg
 
@@ -86,12 +76,9 @@ def is_sell_signal(df):
 # ✅ عرض النتيجة
 st.subheader("📈 النتيجة:")
 
-try:
-    if is_buy_signal(df):
-        st.success("🟢 إشارة شراء قوية ✅")
-    elif is_sell_signal(df):
-        st.error("🔴 إشارة بيع قوية ✅")
-    else:
-        st.warning("⏸️ لا توجد إشارة مؤكدة حالياً.")
-except Exception as e:
-    st.error(f"حدث خطأ أثناء التحليل: {e}")
+if is_buy_signal(df):
+    st.success("🟢 إشارة شراء قوية ✅")
+elif is_sell_signal(df):
+    st.error("🔴 إشارة بيع قوية ✅")
+else:
+    st.warning("⏸️ لا توجد إشارة مؤكدة حالياً.")
