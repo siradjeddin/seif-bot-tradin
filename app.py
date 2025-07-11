@@ -17,6 +17,11 @@ period = st.selectbox("اختر مدة التحليل", ["7d", "14d", "30d"])
 df = yf.download(tickers=symbol, interval=interval, period=period)
 df.reset_index(inplace=True)
 
+# ✅ تحقق إن البيانات غير فارغة
+if df.empty:
+    st.error("❌ لا توجد بيانات كافية لهذا الزوج أو الفترة المحددة.")
+    st.stop()
+
 # ✅ إصلاح الأعمدة لو فيها MultiIndex
 df.columns = [col if isinstance(col, str) else col[1] for col in df.columns]
 
