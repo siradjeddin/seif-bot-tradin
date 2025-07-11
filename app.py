@@ -17,49 +17,48 @@ period = st.selectbox("اختر مدة التحليل", ["7d", "14d", "30d"])
 df = yf.download(tickers=symbol, interval=interval, period=period)
 df.reset_index(inplace=True)
 
-# ✅ عرض أسماء الأعمدة للتصحيح
-st.subheader("🧾 الأعمدة الموجودة في البيانات:")
+# ✅ عرض الأعمدة المتاحة
+st.subheader("🧾 الأعمدة الموجودة:")
 st.write(df.columns.tolist())
 
-# ✅ التحقق من الأعمدة المطلوبة
+# ✅ التحقق من الأعمدة المناسبة
 try:
-    close_col = [col for col in df.columns if "Close" in col][0]
+    price_col = symbol  # العمود باسم رمز الزوج مثلاً "BTC-USD"
     volume_col = [col for col in df.columns if "Volume" in col][0]
 except IndexError:
-    st.error("❌ لم يتم العثور على أعمدة الأسعار اللازمة.")
+    st.error("❌ لم يتم العثور على الأعمدة المطلوبة.")
     st.stop()
 
-# ✅ المؤشرات
-df['rsi'] = ta.momentum.RSIIndicator(close=df[close_col], window=14).rsi()
-df['ma50'] = df[close_col].rolling(window=50).mean()
-df['ma200'] = df[close_col].rolling(window=200).mean()
-macd = ta.trend.MACD(close=df[close_col])
+# ✅ إنشاء مؤشرات فنية
+df['rsi'] = ta.momentum.RSIIndicator(close=df[price_col], window=14).rsi()
+df['ma50'] = df[price_col].rolling(window=50).mean()
+df['ma200'] = df[price_col].rolling(window=200).mean()
+macd = ta.trend.MACD(close=df[price_col])
 df['macd'] = macd.macd()
 df['macd_signal'] = macd.macd_signal()
 
-# ✅ الشموع
+# ✅ تعريف الشموع
 def is_bullish_engulfing(df):
     last = df.iloc[-1]
     prev = df.iloc[-2]
-    return (prev[close_col] < prev['Open']) and (last[close_col] > last['Open']) and (last[close_col] > prev['Open'])
+    return (prev[price_col] < prev[price_col]) and (last[price_col] > last[price_col]) and (last[price_col] > prev[price_col])
 
 def is_bearish_engulfing(df):
     last = df.iloc[-1]
     prev = df.iloc[-2]
-    return (prev[close_col] > prev['Open']) and (last[close_col] < last['Open']) and (last[close_col] < prev['Open'])
+    return (prev[price_col] > prev[price_col]) and (last[price_col] < last[price_col]) and (last[price_col] < prev[price_col])
 
 def is_high_volume(df):
     avg = df[volume_col].iloc[-10:].mean()
     return df[volume_col].iloc[-1] > avg
 
-# ✅ إشارات
+# ✅ إشارات الشراء والبيع
 def is_buy_signal(df):
     last = df.iloc[-1]
     return (
         last['rsi'] < 30 and
         last['ma50'] > last['ma200'] and
         last['macd'] > last['macd_signal'] and
-        is_bullish_engulfing(df) and
         is_high_volume(df)
     )
 
@@ -69,7 +68,6 @@ def is_sell_signal(df):
         last['rsi'] > 70 and
         last['ma50'] < last['ma200'] and
         last['macd'] < last['macd_signal'] and
-        is_bearish_engulfing(df) and
         is_high_volume(df)
     )
 
